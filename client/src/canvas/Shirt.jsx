@@ -9,7 +9,7 @@ import state from '../store'
 const Shirt = () => {
 
   const snap = useSnapshot(state)
-  const { nodes, materials } = useGLTF('/shirt.glb')
+  const { nodes, materials } = useGLTF('/hd_shirt.glb')
 
   // Debug what's in the model
   console.log("Nodes:", nodes)
@@ -43,7 +43,14 @@ const Shirt = () => {
         material-roughness={1}
         dispose={null}
       >
-
+        {snap.isFullTexture && (
+          <Decal
+            position={[0,0,0]}
+            rotation={[0,0,0]}
+            scale={1}
+            map={fullTexture}
+          />
+        )}
       </mesh>
     </group>
   )
