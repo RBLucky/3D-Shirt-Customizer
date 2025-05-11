@@ -1,54 +1,79 @@
-import React from 'react'
-import { easing } from 'maath'
-import { useSnapshot } from 'valtio'
-import { useFrame } from '@react-three/fiber'
-import { Decal, useGLTF, useTexture } from '@react-three/drei'
+import React, { useEffect } from 'react'
+import { easing } from 'maath';
+import { useSnapshot } from 'valtio';
+import { useFrame } from '@react-three/fiber';
+import { Decal, useGLTF, useTexture } from '@react-three/drei';
+import * as THREE from 'three';
 
-import state from '../store'
+import state from '../store';
 
 const Shirt = () => {
+  const snap = useSnapshot(state);
+  const { nodes, materials } = useGLTF('/shirt_baked.glb');
 
-  const snap = useSnapshot(state)
-  const { nodes, materials } = useGLTF('/hd_shirt.glb')
+  const logoTexture = useTexture(snap.logoDecal);
+  const fullTexture = useTexture(snap.fullDecal);
 
-  // Debug what's in the model
-  console.log("Nodes:", nodes)
-  console.log("Materials:", materials)
+  // Create a new material instead of using the one from the model
+  const shirtMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(snap.color),
+    roughness: 1,
+    metalness: 0
+  });
 
-  const logoTexture = useTexture(snap.logoDecal)
-  const fullTexture = useTexture(snap.fullDecal)
+  // Apply the color from state immediately and on any changes
+  useEffect(() => {
+    console.log("Setting color to:", snap.color);
+    shirtMaterial.color.set(snap.color);
+    shirtMaterial.needsUpdate = true;
+  }, [snap.color]);
 
-  // Use a safeguard to prevent errors
-  if (!nodes || !materials) {
-    return null;
-  }
+  // Log what's happening with the materials
+  useEffect(() => {
+    console.log("Original material color:", materials.lambert1.color);
+    console.log("Material type:", materials.lambert1.type);
+    console.log("New material color:", shirtMaterial.color);
+    
+    // Let's examine the model structure
+    console.log("Model nodes:", nodes);
+  }, []);
 
-  // Find the first mesh in the model
-  const shirtNode = Object.values(nodes).find(node => node.isMesh) || null;
-  console.log("first mesh: ", shirtNode)
+  // Smoothly transition the color
+  useFrame((state, delta) => {
+    easing.dampC(shirtMaterial.color, snap.color, 0.25, delta);
+    shirtMaterial.needsUpdate = true;
+  });
 
-  if (!shirtNode) {
-    console.error("No mesh found in the model");
-    return null;
-  }
+  console.log("Current color in render:", snap.color);
 
+  const stateString = JSON.stringify(snap);
+  
   return (
-    <group
-      rotation={[0, Math.PI / -2, 0]}
-    >
+    <group key={stateString}>
       <mesh
         castShadow
-        geometry={shirtNode.geometry}
-        material={Object.values(materials)[0]}
-        material-roughness={1}
+        geometry={nodes.T_Shirt_male.geometry}
+        material={shirtMaterial}
         dispose={null}
       >
         {snap.isFullTexture && (
-          <Decal
-            position={[0,0,0]}
-            rotation={[0,0,0]}
+          <Decal 
+            position={[0, 0, 0]}
+            rotation={[0, 0, 0]}
             scale={1}
             map={fullTexture}
+          />
+        )}
+
+        {snap.isLogoTexture && (
+          <Decal 
+            position={[0, 0.04, 0.15]}
+            rotation={[0, 0, 0]}
+            scale={0.15}
+            map={logoTexture}
+            anisotropy={16}
+            depthTest={false}
+            depthWrite={true}
           />
         )}
       </mesh>
